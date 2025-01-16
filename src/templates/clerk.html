@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Drinks Counter</title>
+	<style>
+		.large-button {
+			font-size: 20px;
+			padding: 15px 30px;
+			width: 150px;
+			height: 50px;
+			margin: 5px;
+		}
+
+		.button-container {
+			display: flex;
+			flex-direction: column; /* Stack the buttons vertically */
+			align-items: center;
+		}
+	</style>
+	<script>
+		async function updateCounter(counterId, action) {
+			const response = await fetch('/update_counter', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({ counter_id: counterId, action: action })
+			});
+
+			const data = await response.json();
+
+			if (data.success) {
+				document.getElementById(`counter-${counterId}`).innerText = data.new_value;
+				document.getElementById('total-price').innerText = data.total_price;
+			} else {
+				alert('Failed to update counter');
+			}
+		}
+
+		async function commit() {
+			const response = await fetch('/commit', {
+				method: 'POST'
+			});
+
+			const data = await response.json();
+
+			if (data.success) {
+				document.getElementById('total-price').innerText = data.total_price;
+				// Reset all counters to 0 in the UI
+				{% for i in range(drinks|length) %}
+					document.getElementById(`counter-{{ i }}`).innerText = 0;
+				{% endfor %}
+			} else {
+				alert('Failed to commit');
+			}
+		}
+	</script>
+</head>
+<body>
+	<div style="display: flex; justify-content: space-around;">
+		{% for i in range(drinks|length) %}
+		<div style="text-align: center; margin: 10px;">
+			<h2>{{ drinks[i].name }}</h2>
+			<p>Pris: {{ drinks[i].current_price }},-</p>
+			<h3 id="counter-{{ i }}">{{ counters[i] }}</h3>
+			<div class="button-container">
+				<button onclick="updateCounter({{ i }}, 'increment')" class="large-button">+</button>
+				<button onclick="updateCounter({{ i }}, 'decrement')" class="large-button">-</button>
+			</div>
+		</div>
+		{% endfor %}
+	</div>
+	<div style="margin-top: 20px; text-align: center;">
+		<h3>Total Pris: <span id="total-price">{{ total_price }}</span></h3>
+	</div>
+	<div style="margin-top: 20px; text-align: center;">
+		<button onclick="commit()" class="large-button">Køb</button>
+	</div>
+</body>
+</html>
