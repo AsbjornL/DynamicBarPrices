@@ -3,79 +3,163 @@
 <head>
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
-	<title>Drinks Counter</title>
+	<title>Kasseapperat</title>
 	<style>
-		.large-button {
-			font-size: 20px;
-			padding: 15px 30px;
-			width: 150px;
-			height: 50px;
-			margin: 5px;
+		body {
+			font-family: Arial, sans-serif;
+			margin: 20px;
 		}
-
+		.large-button {
+			font-size: 18px;
+			padding: 10px 20px;
+			width: 120px;
+			height: 40px;
+			margin: 5px;
+			cursor: pointer;
+		}
 		.button-container {
 			display: flex;
-			flex-direction: column; /* Stack the buttons vertically */
-			align-items: center;
+			justify-content: center;
+			margin-top: 10px;
+		}
+		.drink-container {
+			text-align: center;
+			margin: 15px;
+			padding: 15px;
+			border: 1px solid #ddd;
+			border-radius: 5px;
+			box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+			background-color: #f9f9f9;
+		}
+		.drink-grid {
+			display: grid;
+			grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+			gap: 20px;
+			padding: 20px;
+		}
+		#total-price-container {
+			margin-top: 20px;
+			text-align: center;
+			font-size: 20px;
+		}
+		#commit-button-container {
+			margin-top: 20px;
+			text-align: center;
 		}
 	</style>
 	<script>
 		async function updateCounter(counterId, action) {
-			const response = await fetch('/update_counter', {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json'
-				},
-				body: JSON.stringify({ counter_id: counterId, action: action })
-			});
+			try {
+				const response = await fetch('/update_counter', {
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json'
+					},
+					body: JSON.stringify({ counter_id: counterId, action: action })
+				});
 
-			const data = await response.json();
+				const data = await response.json();
 
-			if (data.success) {
-				document.getElementById(`counter-${counterId}`).innerText = data.new_value;
-				document.getElementById('total-price').innerText = data.total_price;
-			} else {
-				alert('Failed to update counter');
+				if (data.success) {
+					document.getElementById(`counter-${counterId}`).innerText = data.new_value;
+					document.getElementById('total-price').innerText = data.total_price;
+				} else {
+					alert('Failed to update counter');
+				}
+			} catch (error) {
+				console.error('Error updating counter:', error);
+				alert('An error occurred while updating the counter.');
 			}
 		}
 
 		async function commit() {
-			const response = await fetch('/commit', {
-				method: 'POST'
-			});
+			try {
+				const response = await fetch('/commit', {
+					method: 'POST'
+				});
 
-			const data = await response.json();
+				const data = await response.json();
 
-			if (data.success) {
-				document.getElementById('total-price').innerText = data.total_price;
-				// Reset all counters to 0 in the UI
-				{% for i in range(drinks|length) %}
-					document.getElementById(`counter-{{ i }}`).innerText = 0;
-				{% endfor %}
-			} else {
-				alert('Failed to commit');
+				if (data.success) {
+					document.getElementById('total-price').innerText = data.total_price;
+					// Reset all counters to 0 in the UI
+					{% for drink in drinks %}
+						document.getElementById(`counter-{{ drink.id }}`).innerText = 0;
+					{% endfor %}
+				} else {
+					alert('Failed to commit: ' + (data.error || 'Unknown error'));
+				}
+			} catch (error) {
+				console.error('Error committing:', error);
+				alert('An error occurred while committing.');
 			}
 		}
+
+		async function fetchUpdates() {
+			try {
+				const response = await fetch('/get-updates');
+				const data = await response.json();
+				document.getElementById('total-price').innerText = data.total_price;
+				updateDrinks(data.drinks);
+			} catch (error) {
+				console.error("Error fetching updates:", error);
+			}
+		}
+
+		function updateDrinks(updatedDrinks) {
+			const drinksContainer = document.querySelector(".drink-grid");
+			for (const drink of updatedDrinks) {
+				// Update existing drink entries
+				const counterElement = document.getElementById(`counter-${drink.id}`);
+				if (counterElement) {
+					const priceElement = document.querySelector(`#drink-${drink.id} .drink-price`);
+					if (priceElement) {
+						priceElement.innerText = `Pris: ${drink.price} kr`;
+					}
+				} else {
+					// Add new drinks if necessary
+					const drinkDiv = document.createElement("div");
+					drinkDiv.classList.add("drink-container");
+					drinkDiv.id = `drink-${drink.id}`;
+					drinkDiv.innerHTML = `
+						<h2>${drink.name}</h2>
+						<p class="drink-price">Pris: ${drink.price} kr</p>
+						<h3 id="counter-${drink.id}">0</h3>
+						<div class="button-container">
+							<button onclick="updateCounter(${drink.id}, 'increment')" class="large-button">+</button>
+							<button onclick="updateCounter(${drink.id}, 'decrement')" class="large-button">-</button>
+						</div>
+					`;
+					drinksContainer.appendChild(drinkDiv);
+				}
+			}
+		}
+
+		// Poll the server every 5 seconds for updates
+		setInterval(fetchUpdates, 5000);
+
+		// Fetch updates on page load
+		window.onload = fetchUpdates;
 	</script>
 </head>
 <body>
-	<div style="display: flex; justify-content: space-around;">
-		{% for i in range(drinks|length) %}
-		<div style="text-align: center; margin: 10px;">
-			<h2>{{ drinks[i].name }}</h2>
-			<p>Pris: {{ drinks[i].current_price }},-</p>
-			<h3 id="counter-{{ i }}">{{ counters[i] }}</h3>
+	<div class="drink-grid">
+		{% for drink in drinks %}
+		<div class="drink-container" id="drink-{{ drink.id }}">
+			<h2>{{ drink.name }}</h2>
+			<p class="drink-price">Pris: {{ drink.price }} kr</p>
+			<h3 id="counter-{{ drink.id }}">{{ counts.get(drink.id, 0) }}</h3>
 			<div class="button-container">
-				<button onclick="updateCounter({{ i }}, 'increment')" class="large-button">+</button>
-				<button onclick="updateCounter({{ i }}, 'decrement')" class="large-button">-</button>
+				<button onclick="updateCounter({{ drink.id }}, 'increment')" class="large-button">+</button>
+				<button onclick="updateCounter({{ drink.id }}, 'decrement')" class="large-button">-</button>
 			</div>
 		</div>
 		{% endfor %}
 	</div>
-	<div style="margin-top: 20px; text-align: center;">
-		<h3>Total Pris: <span id="total-price">{{ total_price }}</span></h3>
+	<div id="total-price-container">
+		<h3>Total Pris: <span id="total-price">{{ total_price }}</span> kr</h3>
 	</div>
-	<div style="margin-top: 20px; text-align: center;">
+	<div id="commit-button-container">
 		<button onclick="commit()" class="large-button">Køb</button>
 	</div>
 </body>

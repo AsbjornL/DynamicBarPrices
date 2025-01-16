@@ -1,8 +1,9 @@
-from flask import Flask, render_template, jsonify
 import threading
 import requests
 import time
 import conf
+
+from flask import Flask, render_template, jsonify
 
 app = Flask(__name__)
 
@@ -39,4 +40,4 @@ def update_loop():
 if __name__ == "__main__":
 	update_loop_thread = threading.Thread(target=update_loop, daemon=True)
 	update_loop_thread.start()
-	app.run(debug=True, port=8000)
+	app.run(debug=True, port=conf.customer_port)

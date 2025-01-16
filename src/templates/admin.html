@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Admin Panel</title>
+	<style>
+		body {
+			font-family: Arial, sans-serif;
+			margin: 20px;
+		}
+		.drink-item {
+			margin-bottom: 20px;
+			padding: 10px;
+			border: 1px solid #ddd;
+			border-radius: 5px;
+			background-color: #f9f9f9;
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+		}
+		.form-group {
+			margin-bottom: 10px;
+		}
+		label {
+			display: block;
+			margin-bottom: 5px;
+		}
+		input {
+			width: 100%;
+			padding: 5px;
+		}
+		button {
+			padding: 10px 20px;
+			background-color: #007bff;
+			color: white;
+			border: none;
+			border-radius: 5px;
+			cursor: pointer;
+		}
+		button:hover {
+			background-color: #0056b3;
+		}
+		.current-values {
+			margin-right: 20px;
+			text-align: right;
+			font-size: 14px;
+			color: #555;
+		}
+		.field-container {
+			display: flex;
+			align-items: center;
+			gap: 10px;
+		}
+		.editable-field {
+			flex-grow: 1;
+		}
+	</style>
+</head>
+<body>
+	<h1>Admin Panel</h1>
+	<div id="drinks-container"></div>
+
+	<script>
+		async function fetchDrinks() {
+			const response = await fetch('/get-drinks');
+			const data = await response.json();
+			renderDrinks(data.drinks);
+		}
+
+		function renderDrinks(drinks) {
+			const container = document.getElementById("drinks-container");
+			container.innerHTML = ""; // Clear existing content
+
+			drinks.forEach(drink => {
+				const drinkDiv = document.createElement("div");
+				drinkDiv.classList.add("drink-item");
+				drinkDiv.id = `drink-${drink.id}`;
+				drinkDiv.innerHTML = `
+					<div class="current-values">
+						<p><strong>Name:</strong> ${drink.name}</p>
+						<p><strong>Price:</strong> ${drink.price} kr</p>
+						<p><strong>Stock:</strong> ${drink.stock}</p>
+					</div>
+					<div class="editable-field">
+						<div class="form-group">
+							<label for="name-${drink.id}">Edit Name</label>
+							<input type="text" id="name-${drink.id}" value="${drink.name}">
+						</div>
+						<div class="form-group">
+							<label for="price-${drink.id}">Edit Price</label>
+							<input type="number" id="price-${drink.id}" value="${drink.price}" step="0.01">
+						</div>
+						<div class="form-group">
+							<label for="stock-${drink.id}">Edit Stock</label>
+							<input type="number" id="stock-${drink.id}" value="${drink.stock}">
+						</div>
+						<button onclick="updateDrink(${drink.id})">Update</button>
+					</div>
+				`;
+				container.appendChild(drinkDiv);
+			});
+		}
+
+		async function updateDrink(id) {
+			const name = document.getElementById(`name-${id}`).value;
+			const price = document.getElementById(`price-${id}`).value;
+			const stock = document.getElementById(`stock-${id}`).value;
+
+			const response = await fetch('/admin/update-drink', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ id, name, price, stock })
+			});
+
+			if (response.ok) {
+				alert("Drink updated successfully!");
+				fetchDrinks();
+			} else {
+				alert("Failed to update drink.");
+			}
+		}
+
+		async function autoUpdate() {
+			try {
+				const response = await fetch('/get-drinks');
+				const data = await response.json();
+				updateDrinkDisplay(data.drinks);
+			} catch (error) {
+				console.error("Error fetching updates:", error);
+			}
+		}
+
+		function updateDrinkDisplay(updatedDrinks) {
+			updatedDrinks.forEach(drink => {
+				const drinkDiv = document.getElementById(`drink-${drink.id}`);
+				if (drinkDiv) {
+					const currentValues = drinkDiv.querySelector('.current-values');
+					currentValues.innerHTML = `
+						<p><strong>Name:</strong> ${drink.name}</p>
+						<p><strong>Price:</strong> ${drink.price} kr</p>
+						<p><strong>Stock:</strong> ${drink.stock}</p>
+					`;
+				}
+			});
+		}
+
+		// Poll the server every 5 seconds for updates
+		setInterval(autoUpdate, 5000);
+
+		// Fetch drinks on page load
+		fetchDrinks();
+	</script>
+</body>
+</html>

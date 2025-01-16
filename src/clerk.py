@@ -3,7 +3,7 @@ import requests
 import time
 import conf
 
-from flask import Flask, render_template, jsonify
+from flask import Flask, render_template, jsonify, session, request
 from flask_session import Session
 
 app = Flask(__name__)
@@ -19,13 +19,14 @@ lock = threading.Lock()
 def index():
 	if 'counts' not in session:
 		session['counts'] = {}
-	total_price = sum(drink["price"] for drink in drinks)
+	total_price = sum(drink['price'] * session['counts'].get(drink['id'], 0) for drink in drinks)
 	return render_template("clerk.html", counts=session['counts'], drinks=drinks, total_price=total_price)
 
 @app.route("/get-updates")
 def get_updates():
 	with lock:
-		return jsonify({"data": drinks})
+		total_price = sum(drink['price'] * session['counts'].get(drink['id'], 0) for drink in drinks)
+		return jsonify({"drinks": drinks, "total_price": total_price})
 
 @app.route('/update_counter', methods=['POST'])
 def update_counter():
@@ -43,7 +44,7 @@ def update_counter():
 			if session['counts'].get(counter_id, 0) > 0:
 				session['counts'][counter_id] -= 1
 		session.modified = True
-		total_price = sum(drink["price"] for drink in drinks)
+		total_price = sum(drink['price'] * session['counts'].get(drink['id'], 0) for drink in drinks)
 		return jsonify({
 			'success': True,
 			'new_value': session['counts'].get(counter_id),
@@ -54,7 +55,25 @@ def update_counter():
 
 @app.route('/commit', methods=['POST'])
 def commit():
-	pass
+	if 'counts' not in session:
+		session['counts'] = {}
+
+	request_data = []
+	with lock:
+		for id, count in session['counts'].items():
+			request_data.append({"id": id, "count": -count})
+			session['counts'][id] = 0
+
+	session.modified = True
+
+	headers = {'Content-type': 'application/json'}
+	response = requests.post(conf.server_url + "/update-stock", json=request_data, headers=headers)
+	if response.status_code == 200:
+		return jsonify({"success": True, "total_price": 0}), 200
+	else:
+		error = response.json()['error']
+		print("Commiting failed:", error)
+		return jsonify({"success": False, "error": error, "total_price": 0}), 200
 
 def update_loop():
 	global drinks, last_updated
@@ -76,4 +95,4 @@ def update_loop():
 if __name__ == "__main__":
 	update_loop_thread = threading.Thread(target=update_loop, daemon=True)
 	update_loop_thread.start()
-	app.run(debug=True, port=8000)
+	app.run(debug=True, port=conf.clerk_port)

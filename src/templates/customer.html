@@ -1,71 +1,72 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 20px;
-        }
-        h1 {
-            color: #333;
-        }
-        #drinks-container {
-            margin-top: 20px;
-        }
-        .drink-item {
-            margin-bottom: 10px;
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 5px;
-            background-color: #f9f9f9;
-        }
-        .drink-name {
-            font-weight: bold;
-            font-size: 18px;
-        }
-        .drink-price {
-            color: #007bff;
-        }
-    </style>
-    <script>
-        async function fetchUpdates() {
-            try {
-                const response = await fetch('/get-updates');
-                const data = await response.json();
-                updateDrinks(data.data);
-            } catch (error) {
-                console.error("Error fetching updates:", error);
-            }
-        }
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Bar Priser</title>
+	<style>
+		body {
+			font-family: Arial, sans-serif;
+			margin: 20px;
+		}
+		h1 {
+			color: #333;
+		}
+		#drinks-container {
+			margin-top: 20px;
+		}
+		.drink-item {
+			margin-bottom: 10px;
+			padding: 10px;
+			border: 1px solid #ddd;
+			border-radius: 5px;
+			background-color: #f9f9f9;
+		}
+		.drink-name {
+			font-weight: bold;
+			font-size: 18px;
+		}
+		.drink-price {
+			color: #007bff;
+		}
+	</style>
+	<script>
+		async function fetchUpdates() {
+			try {
+				const response = await fetch('/get-updates');
+				const data = await response.json();
+				updateDrinks(data.data);
+			} catch (error) {
+				console.error("Error fetching updates:", error);
+			}
+		}
 
-        function updateDrinks(drinks) {
-            const drinksContainer = document.getElementById("drinks-container");
-            drinksContainer.innerHTML = ""; // Clear existing content
+		function updateDrinks(drinks) {
+			const drinksContainer = document.getElementById("drinks-container");
+			drinksContainer.innerHTML = ""; // Clear existing content
 
-            for (const [id, drink] of Object.entries(drinks)) {
-                const drinkDiv = document.createElement("div");
-                drinkDiv.classList.add("drink-item");
-                drinkDiv.innerHTML = `
-                    <div class="drink-name">${drink.name}</div>
-                    <div class="drink-price">Pris: ${drink.price},-</div>
-                `;
-                drinksContainer.appendChild(drinkDiv);
-            }
-        }
+			for (const [id, drink] of Object.entries(drinks)) {
+				const drinkDiv = document.createElement("div");
+				drinkDiv.classList.add("drink-item");
+				drinkDiv.innerHTML = `
+					<div class="drink-name">${drink.name}</div>
+					<div class="drink-price">Pris: ${drink.price},-</div>
+				`;
+				drinksContainer.appendChild(drinkDiv);
+			}
+		}
 
-        // Poll the server every 5 seconds
-        setInterval(fetchUpdates, 5000);
+		// Poll the server every 5 seconds
+		setInterval(fetchUpdates, 5000);
 
-        // Fetch updates on page load
-        window.onload = fetchUpdates;
-    </script>
+		// Fetch updates on page load
+		window.onload = fetchUpdates;
+	</script>
 </head>
 <body>
-    <div id="drinks-container">
-        <!-- Drinks will be dynamically updated here -->
-    </div>
+	<div id="drinks-container">
+		<!-- Drinks will be dynamically updated here -->
+	</div>
 </body>
 </html>
 

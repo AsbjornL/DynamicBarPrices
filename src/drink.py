@@ -5,3 +5,6 @@ class Drink:
 		self.name = name
 		self.starting_stock = starting_stock
 		self.stock = starting_stock
+
+	def update_price(self):
+		self.current_price = self.minimum_price + self.starting_stock - self.stock

@@ -1,7 +1,9 @@
-from flask import Flask, jsonify, request
-from drink import Drink
 import threading
 import time
+import conf
+
+from flask import Flask, jsonify, request, render_template
+from drink import Drink
 
 app = Flask(__name__)
 
@@ -17,11 +19,12 @@ time_mutex = threading.Lock()
 last_updated = time.time()
 
 def update_loop():
+	global last_updated
 	while True:
 		time.sleep(300)
-		with drink_mutex:
+		with drinks_mutex:
 			for drink in drinks:
-				pass
+				drink.update_price()
 		with time_mutex:
 			last_updated = time.time()
 
@@ -37,7 +40,7 @@ def get_data():
 			with drinks_mutex:
 				return jsonify({
 						"last_updated": last_updated,
-						"drinks": [{"id": i, "name": drink.name, "price": drink.current_price} for i, drink in enumerate(drinks)]
+						"drinks": [{"id": i, "name": drink.name, "price": drink.current_price, "stock": drink.stock} for i, drink in enumerate(drinks)]
 					})
 		time.sleep(1)
 
@@ -50,14 +53,41 @@ def update_stock():
 		try:
 			for drink in request_data:
 				drinks[int(drink["id"])].stock += int(drink["count"])
+				drinks[int(drink["id"])].update_price()
 		except KeyError:
-			return jsonify({"error", "Invalid data"}), 400
+			return jsonify({"error": "Invalid data"}), 400
 	with time_mutex:
 		last_updated = time.time()
 
 	return jsonify({"message": "Stock updated successfully", "data": request_data}), 200
 
+@app.route("/admin", methods=["GET"])
+def admin_page():
+	return render_template("admin.html")
+
+@app.route("/admin/update-drink", methods=["POST"])
+def admin_update_drink():
+	global last_updated
+	request_data = request.json
+	print(request_data)
+
+	try:
+		drink_id = int(request_data["id"])
+		with drinks_mutex:
+			if name := request_data.get('name'):
+				drinks[drink_id].name = name
+			if price := request_data.get('price'):
+				drinks[drink_id].current_price = float(price)
+			if stock := request_data.get('stock'):
+				drinks[drink_id].stock = int(stock)
+			drinks[drink_id].update_price()
+		with time_mutex:
+			last_updated = time.time()
+		return jsonify({"message": "Drink updated successfully"}), 200
+	except (KeyError, ValueError, IndexError):
+		return jsonify({"error": "Invalid input"}), 400
+
 if __name__ == "__main__":
 	update_loop_thread = threading.Thread(target=update_loop, daemon=True)
 	update_loop_thread.start()
-	app.run(debug=True)
+	app.run(debug=True, port=conf.server_port)
